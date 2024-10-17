@@ -105,8 +105,12 @@ fn Tokenizer(comptime sentinel: anytype) type {
 
             const State = enum {
                 start,
-                identifier,
                 invalid,
+                bang,
+                equal,
+                angle_bracket_left,
+                angle_bracket_right,
+                identifier,
             };
 
             state: switch (State.start) {
@@ -163,11 +167,55 @@ fn Tokenizer(comptime sentinel: anytype) type {
                         result.tag = .slash;
                         self.index += 1;
                     },
+                    '!' => continue :state .bang,
+                    '=' => continue :state .equal,
+                    '<' => continue :state .angle_bracket_left,
+                    '>' => continue :state .angle_bracket_right,
                     'a'...'z', 'A'...'Z', '_' => {
                         result.tag = .identifier;
                         continue :state .identifier;
                     },
                     else => continue :state .invalid,
+                },
+                .bang => {
+                    self.index += 1;
+                    switch (self.buffer[self.index]) {
+                        '=' => {
+                            result.tag = .bang_equal;
+                            self.index += 1;
+                        },
+                        else => result.tag = .bang,
+                    }
+                },
+                .equal => {
+                    self.index += 1;
+                    switch (self.buffer[self.index]) {
+                        '=' => {
+                            result.tag = .equal_equal;
+                            self.index += 1;
+                        },
+                        else => result.tag = .equal,
+                    }
+                },
+                .angle_bracket_left => {
+                    self.index += 1;
+                    switch (self.buffer[self.index]) {
+                        '=' => {
+                            result.tag = .less_equal;
+                            self.index += 1;
+                        },
+                        else => result.tag = .less,
+                    }
+                },
+                .angle_bracket_right => {
+                    self.index += 1;
+                    switch (self.buffer[self.index]) {
+                        '=' => {
+                            result.tag = .greater_equal;
+                            self.index += 1;
+                        },
+                        else => result.tag = .greater,
+                    }
                 },
                 .identifier => {
                     self.index += 1;
