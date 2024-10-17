@@ -257,9 +257,11 @@ fn runInterpreter(allocator: std.mem.Allocator, in: std.fs.File) !void {
     const buf = try allocator.alloc(u8, 1 << 15);
     defer allocator.free(buf);
 
-    while (true) {
+    scanner: while (true) {
         std.debug.print("> ", .{});
         const bytes_read = try reader.read(buf);
+
+        if (bytes_read <= 0) break :scanner;
 
         var tokenizer = Tokenizer(sentinel).init(buf[0 .. bytes_read - 1 :sentinel]);
         tokenizer: while (tokenizer.next()) |tok| {
