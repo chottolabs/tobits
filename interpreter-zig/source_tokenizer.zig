@@ -31,6 +31,7 @@ pub const Token = struct {
     pub fn getKeyword(bytes: []const u8) ?Tag {
         return keywords.get(bytes);
     }
+
     pub const Tag = enum {
         left_paren,
         right_paren,
@@ -82,128 +83,230 @@ pub const Token = struct {
     };
 };
 
-fn SourceTokenizer(comptime sentinel: anytype) type {
-    return struct {
-        buffer: [:sentinel]const u8,
-        index: usize,
+const SourceTokenizer = struct {
+    buffer: [:0]const u8,
+    index: usize,
 
-        pub fn init(buffer: [:sentinel]const u8) SourceTokenizer(sentinel) {
-            return .{
-                .buffer = buffer,
-                .index = 0,
-            };
-        }
-        pub fn next(self: *SourceTokenizer(sentinel)) Token {
-            var result: Token = .{
-                .tag = undefined,
-                .loc = .{
-                    .start = self.index,
-                    .end = undefined,
-                },
-            };
+    pub fn init(buffer: [:0]const u8) SourceTokenizer {
+        return .{
+            .buffer = buffer,
+            .index = 0,
+        };
+    }
+    pub fn next(self: *SourceTokenizer) ?Token {
+        var result: Token = .{
+            .tag = undefined,
+            .loc = .{
+                .start = self.index,
+                .end = undefined,
+            },
+        };
 
-            const State = enum {
-                start,
-                invalid,
-            };
+        const State = enum {
+            start,
+            invalid,
+            bang,
+            equal,
+            angle_bracket_left,
+            angle_bracket_right,
+            int,
+            int_period,
+            float,
+            identifier,
+        };
 
-            state: switch (State.start) {
-                .start => switch (self.buffer[self.index]) {
-                    0 => {
-                        if (self.index == self.buffer.len) {
-                            return .{
-                                .tag = .eof,
-                                .loc = .{
-                                    .start = self.index,
-                                    .end = self.index,
-                                },
-                            };
-                        } else {
-                            continue :state .invalid;
-                        }
-                    },
-                    ' ', '\n', '\t', '\r' => {
-                        self.index += 1;
-                        result.loc.start = self.index;
-                        continue :state .start;
-                    },
-                    '(' => {
-                        result.tag = .left_paren;
-                        self.index += 1;
-                    },
-                    ')' => {
-                        result.tag = .right_paren;
-                        self.index += 1;
-                    },
-                    '{' => {
-                        result.tag = .left_brace;
-                        self.index += 1;
-                    },
-                    '}' => {
-                        result.tag = .right_brace;
-                        self.index += 1;
-                    },
-                    ',' => {
-                        result.tag = .comma;
-                        self.index += 1;
-                    },
-                    '.' => {
-                        result.tag = .dot;
-                        self.index += 1;
-                    },
-                    '-' => {
-                        result.tag = .minus;
-                        self.index += 1;
-                    },
-                    '+' => {
-                        result.tag = .plus;
-                        self.index += 1;
-                    },
-                    ';' => {
-                        result.tag = .semicolon;
-                        self.index += 1;
-                    },
-                    '*' => {
-                        result.tag = .slash;
-                        self.index += 1;
-                    },
-                    else => continue :state .invalid,
-                },
-                .invalid => {
-                    self.index += 1;
-                    switch (self.buffer[self.index]) {
-                        0 => if (self.index == self.buffer.len) {
-                            result.tag = .invalid;
-                        } else {
-                            continue :state .invalid;
-                        },
-                        '\n' => result.tag = .invalid,
-                        else => continue :state .invalid,
+        state: switch (State.start) {
+            .start => switch (self.buffer[self.index]) {
+                0 => {
+                    if (self.index == self.buffer.len) {
+                        return null;
+                    } else {
+                        continue :state .invalid;
                     }
                 },
-            }
-
-            result.loc.end = self.index;
-            return result;
+                ' ', '\n', '\t', '\r' => {
+                    self.index += 1;
+                    result.loc.start = self.index;
+                    continue :state .start;
+                },
+                '(' => {
+                    result.tag = .left_paren;
+                    self.index += 1;
+                },
+                ')' => {
+                    result.tag = .right_paren;
+                    self.index += 1;
+                },
+                '{' => {
+                    result.tag = .left_brace;
+                    self.index += 1;
+                },
+                '}' => {
+                    result.tag = .right_brace;
+                    self.index += 1;
+                },
+                ',' => {
+                    result.tag = .comma;
+                    self.index += 1;
+                },
+                '.' => {
+                    result.tag = .dot;
+                    self.index += 1;
+                },
+                '-' => {
+                    result.tag = .minus;
+                    self.index += 1;
+                },
+                '+' => {
+                    result.tag = .plus;
+                    self.index += 1;
+                },
+                ';' => {
+                    result.tag = .semicolon;
+                    self.index += 1;
+                },
+                '*' => {
+                    result.tag = .slash;
+                    self.index += 1;
+                },
+                '!' => continue :state .bang,
+                '=' => continue :state .equal,
+                '<' => continue :state .angle_bracket_left,
+                '>' => continue :state .angle_bracket_right,
+                '0'...'9' => {
+                    result.tag = .number;
+                    self.index += 1;
+                    continue :state .int;
+                },
+                'a'...'z', 'A'...'Z', '_' => {
+                    result.tag = .identifier;
+                    continue :state .identifier;
+                },
+                else => continue :state .invalid,
+            },
+            .bang => {
+                self.index += 1;
+                switch (self.buffer[self.index]) {
+                    '=' => {
+                        result.tag = .bang_equal;
+                        self.index += 1;
+                    },
+                    else => result.tag = .bang,
+                }
+            },
+            .equal => {
+                self.index += 1;
+                switch (self.buffer[self.index]) {
+                    '=' => {
+                        result.tag = .equal_equal;
+                        self.index += 1;
+                    },
+                    else => result.tag = .equal,
+                }
+            },
+            .angle_bracket_left => {
+                self.index += 1;
+                switch (self.buffer[self.index]) {
+                    '=' => {
+                        result.tag = .less_equal;
+                        self.index += 1;
+                    },
+                    else => result.tag = .less,
+                }
+            },
+            .angle_bracket_right => {
+                self.index += 1;
+                switch (self.buffer[self.index]) {
+                    '=' => {
+                        result.tag = .greater_equal;
+                        self.index += 1;
+                    },
+                    else => result.tag = .greater,
+                }
+            },
+            .int => switch (self.buffer[self.index]) {
+                '.' => continue :state .int_period,
+                '_', 'a'...'d', 'f'...'o', 'q'...'z', 'A'...'D', 'F'...'O', 'Q'...'Z', '0'...'9' => {
+                    self.index += 1;
+                    continue :state .int;
+                },
+                // 'e', 'E', 'p', 'P' => {
+                //     continue :state .int_exponent;
+                // },
+                else => {},
+            },
+            .int_period => {
+                self.index += 1;
+                switch (self.buffer[self.index]) {
+                    '_', 'a'...'d', 'f'...'o', 'q'...'z', 'A'...'D', 'F'...'O', 'Q'...'Z', '0'...'9' => {
+                        self.index += 1;
+                        continue :state .float;
+                    },
+                    // 'e', 'E', 'p', 'P' => {
+                    //     continue :state .float_exponent;
+                    // },
+                    else => self.index -= 1,
+                }
+            },
+            .float => switch (self.buffer[self.index]) {
+                '_', 'a'...'d', 'f'...'o', 'q'...'z', 'A'...'D', 'F'...'O', 'Q'...'Z', '0'...'9' => {
+                    self.index += 1;
+                    continue :state .float;
+                },
+                // 'e', 'E', 'p', 'P' => {
+                //     continue :state .float_exponent;
+                // },
+                else => {},
+            },
+            .identifier => {
+                self.index += 1;
+                switch (self.buffer[self.index]) {
+                    'a'...'z', 'A'...'Z', '_', '0'...'9' => continue :state .identifier,
+                    else => {
+                        const ident = self.buffer[result.loc.start..self.index];
+                        if (Token.getKeyword(ident)) |tag| {
+                            result.tag = tag;
+                        }
+                    },
+                }
+            },
+            .invalid => {
+                self.index += 1;
+                switch (self.buffer[self.index]) {
+                    0 => if (self.index == self.buffer.len) {
+                        result.tag = .invalid;
+                    } else {
+                        continue :state .invalid;
+                    },
+                    else => continue :state .invalid,
+                }
+            },
         }
-    };
-}
+
+        result.loc.end = self.index;
+        return result;
+    }
+};
 
 fn parseSourceFile(allocator: std.mem.Allocator, in: std.fs.File) !void {
+    const out = std.io.getStdOut();
+    var buf = std.io.bufferedWriter(out.writer());
+    var w = buf.writer();
     const content = try std.zig.readSourceFileToEndAlloc(allocator, in, null);
-    var tokenizer = SourceTokenizer(0).init(content);
-    while (true) {
-        const tok = tokenizer.next();
+    var tokenizer = SourceTokenizer.init(content);
+    while (tokenizer.next()) |tok| {
         switch (tok.tag) {
             .eof, .invalid => {
                 break;
             },
             else => {
-                std.debug.print("{any}\n", .{tok});
+                // std.debug.print("{s}\n", .{@tagName(tok.tag)});
+                try w.print("{s}\n", .{@tagName(tok.tag)});
+                try buf.flush();
             },
         }
     }
-    std.debug.print("\n{any}\n", .{content});
+    // std.debug.print("\n{any}\n", .{content});
 }
 
 pub fn main() !void {
@@ -215,7 +318,7 @@ pub fn main() !void {
     const allocator = gpa.allocator();
 
     if (args.next()) |f| {
-        const file = try std.fs.openFileAbsolute(f, .{});
+        const file = try std.fs.cwd().openFile(f, .{});
         try parseSourceFile(allocator, file);
     }
 }
