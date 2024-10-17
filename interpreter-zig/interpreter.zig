@@ -283,9 +283,6 @@ pub fn main() !void {
     // var args = std.process.args();
     // _ = args.skip();
 
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    arena.deinit();
-
     var gpa = std.heap.GeneralPurposeAllocator(.{ .thread_safe = true }).init;
     const allocator = gpa.allocator();
     const file = std.io.getStdIn();
