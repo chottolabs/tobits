@@ -93,7 +93,7 @@ fn Tokenizer(comptime sentinel: anytype) type {
                 .index = 0,
             };
         }
-        pub fn next(self: *Tokenizer(sentinel)) Token {
+        pub fn next(self: *Tokenizer(sentinel)) ?Token {
             var result: Token = .{
                 .tag = undefined,
                 .loc = .{
@@ -111,13 +111,7 @@ fn Tokenizer(comptime sentinel: anytype) type {
                 .start => switch (self.buffer[self.index]) {
                     sentinel => {
                         if (self.index == self.buffer.len - 1) {
-                            return .{
-                                .tag = .eof,
-                                .loc = .{
-                                    .start = self.index,
-                                    .end = self.index,
-                                },
-                            };
+                            return null;
                         } else {
                             continue :state .invalid;
                         }
@@ -202,8 +196,7 @@ fn runInterpreter(allocator: std.mem.Allocator, in: std.fs.File) !void {
         const bytes_read = try reader.read(buf);
 
         var tokenizer = Tokenizer(sentinel).init(buf[0..bytes_read]);
-        tokenizer: while (true) {
-            const tok = tokenizer.next();
+        tokenizer: while (tokenizer.next()) |tok| {
             switch (tok.tag) {
                 .eof => {
                     break :tokenizer;
