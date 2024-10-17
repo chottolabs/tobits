@@ -110,6 +110,9 @@ fn Tokenizer(comptime sentinel: anytype) type {
                 equal,
                 angle_bracket_left,
                 angle_bracket_right,
+                int,
+                int_period,
+                float,
                 identifier,
             };
 
@@ -171,6 +174,11 @@ fn Tokenizer(comptime sentinel: anytype) type {
                     '=' => continue :state .equal,
                     '<' => continue :state .angle_bracket_left,
                     '>' => continue :state .angle_bracket_right,
+                    '0'...'9' => {
+                        result.tag = .number;
+                        self.index += 1;
+                        continue :state .int;
+                    },
                     'a'...'z', 'A'...'Z', '_' => {
                         result.tag = .identifier;
                         continue :state .identifier;
@@ -216,6 +224,40 @@ fn Tokenizer(comptime sentinel: anytype) type {
                         },
                         else => result.tag = .greater,
                     }
+                },
+                .int => switch (self.buffer[self.index]) {
+                    '.' => continue :state .int_period,
+                    '_', 'a'...'d', 'f'...'o', 'q'...'z', 'A'...'D', 'F'...'O', 'Q'...'Z', '0'...'9' => {
+                        self.index += 1;
+                        continue :state .int;
+                    },
+                    // 'e', 'E', 'p', 'P' => {
+                    //     continue :state .int_exponent;
+                    // },
+                    else => {},
+                },
+                .int_period => {
+                    self.index += 1;
+                    switch (self.buffer[self.index]) {
+                        '_', 'a'...'d', 'f'...'o', 'q'...'z', 'A'...'D', 'F'...'O', 'Q'...'Z', '0'...'9' => {
+                            self.index += 1;
+                            continue :state .float;
+                        },
+                        // 'e', 'E', 'p', 'P' => {
+                        //     continue :state .float_exponent;
+                        // },
+                        else => self.index -= 1,
+                    }
+                },
+                .float => switch (self.buffer[self.index]) {
+                    '_', 'a'...'d', 'f'...'o', 'q'...'z', 'A'...'D', 'F'...'O', 'Q'...'Z', '0'...'9' => {
+                        self.index += 1;
+                        continue :state .float;
+                    },
+                    // 'e', 'E', 'p', 'P' => {
+                    //     continue :state .float_exponent;
+                    // },
+                    else => {},
                 },
                 .identifier => {
                     self.index += 1;
