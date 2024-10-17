@@ -31,7 +31,6 @@ pub const Token = struct {
     pub fn getKeyword(bytes: []const u8) ?Tag {
         return keywords.get(bytes);
     }
-
     pub const Tag = enum {
         left_paren,
         right_paren,
