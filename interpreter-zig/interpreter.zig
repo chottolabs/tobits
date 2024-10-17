@@ -84,10 +84,10 @@ pub const Token = struct {
 
 fn Tokenizer(comptime sentinel: anytype) type {
     return struct {
-        buffer: []const u8,
+        buffer: [:sentinel]const u8,
         index: usize,
 
-        pub fn init(buffer: []const u8) Tokenizer(sentinel) {
+        pub fn init(buffer: [:sentinel]const u8) Tokenizer(sentinel) {
             return .{
                 .buffer = buffer,
                 .index = 0,
@@ -110,7 +110,7 @@ fn Tokenizer(comptime sentinel: anytype) type {
             state: switch (State.start) {
                 .start => switch (self.buffer[self.index]) {
                     sentinel => {
-                        if (self.index == self.buffer.len - 1) {
+                        if (self.index == self.buffer.len) {
                             return null;
                         } else {
                             continue :state .invalid;
@@ -166,7 +166,7 @@ fn Tokenizer(comptime sentinel: anytype) type {
                 .invalid => {
                     self.index += 1;
                     switch (self.buffer[self.index]) {
-                        sentinel => if (self.index == self.buffer.len - 1) {
+                        sentinel => if (self.index == self.buffer.len) {
                             result.tag = .invalid;
                         } else {
                             continue :state .invalid;
@@ -195,7 +195,7 @@ fn runInterpreter(allocator: std.mem.Allocator, in: std.fs.File) !void {
         std.debug.print("> ", .{});
         const bytes_read = try reader.read(buf);
 
-        var tokenizer = Tokenizer(sentinel).init(buf[0..bytes_read]);
+        var tokenizer = Tokenizer(sentinel).init(buf[0 .. bytes_read - 1 :sentinel]);
         tokenizer: while (tokenizer.next()) |tok| {
             switch (tok.tag) {
                 .eof => {
