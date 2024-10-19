@@ -291,16 +291,21 @@ fn Tokenizer(comptime sentinel: anytype) type {
 }
 
 fn runInterpreter(allocator: std.mem.Allocator, in: std.fs.File) !void {
+    const stderr = std.io.getStdErr();
+    const buffered_writer = std.io.bufferedWriter(stderr.writer());
+    const w = buffered_writer.writer();
     const reader = in.reader();
 
-    std.debug.print("zlox interpreter v0.0.1\n", .{});
+    try w.write("zlox interpreter v0.0.1\n", .{});
     const sentinel = '\n';
 
     const buf = try allocator.alloc(u8, 1 << 15);
     defer allocator.free(buf);
 
     scanner: while (true) {
-        std.debug.print("> ", .{});
+        try w.write("> ", .{});
+        try buffered_writer.flush();
+
         const bytes_read = try reader.read(buf);
 
         if (bytes_read <= 0) break :scanner;
@@ -312,14 +317,15 @@ fn runInterpreter(allocator: std.mem.Allocator, in: std.fs.File) !void {
                     break :tokenizer;
                 },
                 .invalid => {
-                    std.debug.print("invalid {any}\n", .{tok});
+                    try w.write("invalid {any}\n", .{tok});
                     break :tokenizer;
                 },
                 else => {
-                    std.debug.print("{any}\n", .{tok});
+                    try w.write("{any}\n", .{tok});
                 },
             }
         }
+        buffered_writer.flush();
     }
 }
 

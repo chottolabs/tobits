@@ -1,6 +1,5 @@
 use std::env;
-use std::fs;
-use std::io::{self, BufRead, Read};
+use std::io;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Tag {
@@ -337,9 +336,9 @@ fn run_interpreter() -> io::Result<()> {
                 }
                 _ => {
                     // Optionally, extract the actual text
-                    //let lexeme =
-                    //    std::str::from_utf8(&buffer[token.loc.start..token.loc.end]).unwrap_or("");
-                    //println!("{:?} '{}'", token.tag, lexeme);
+                    let lexeme =
+                        std::str::from_utf8(&buffer[token.loc.start..token.loc.end]).unwrap_or("");
+                    println!("{:?} '{}'", token.tag, lexeme);
                 }
             },
             None => break,

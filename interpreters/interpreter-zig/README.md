@@ -196,3 +196,25 @@ Benchmark 2 (2562 runs): interpreter-rs/target/release/interpreter-rs interprete
   cache_misses       5.56   ±  118         0   … 5.94K         248 (10%)        💩+2165.7% ± 1242.5%
   branch_misses      3.70K  ± 43.1      3.59K  … 4.08K          47 ( 2%)        💩+3263.6% ±  2.5%
 ```
+
+with vs. without size hint
+```sh
+Benchmark 1 (62 runs): interpreter-zig/build/source_tokenizer-fast-strip interpreter-zig/example-long.lox
+  measurement          mean ± σ            min … max           outliers         delta
+  wall_time          80.4ms ±  655us    79.5ms … 85.1ms          3 ( 5%)        0%
+  peak_rss           72.5MB ± 1.63KB    72.5MB … 72.5MB         12 (19%)        0%
+  cpu_cycles          370M  ± 1.19M      364M  …  371M           9 (15%)        0%
+  instructions       1.18G  ± 0.71      1.18G  … 1.18G           2 ( 3%)        0%
+  cache_references   1.13M  ±  143      1.13M  … 1.13M           4 ( 6%)        0%
+  cache_misses        242K  ± 7.65K      229K  …  275K           3 ( 5%)        0%
+  branch_misses      4.94K  ± 15.4      4.90K  … 4.98K           9 (15%)        0%
+Benchmark 2 (49 runs): interpreter-zig/build/source_tokenizer-fast-strip-hint interpreter-zig/example-long.lox
+  measurement          mean ± σ            min … max           outliers         delta
+  wall_time           103ms ±  480us     101ms …  105ms          3 ( 6%)        💩+ 28.5% ±  0.3%
+  peak_rss            119MB ±  622KB     118MB …  120MB          0 ( 0%)        💩+ 64.5% ±  0.2%
+  cpu_cycles          418M  ± 1.36M      414M  …  422M           3 ( 6%)        💩+ 13.1% ±  0.1%
+  instructions       1.19G  ±  397      1.19G  … 1.19G           2 ( 4%)        💩+  1.3% ±  0.0%
+  cache_references   5.72M  ± 17.1K     5.69M  … 5.79M           1 ( 2%)        💩+405.1% ±  0.4%
+  cache_misses       2.14M  ± 47.2K     2.09M  … 2.30M           6 (12%)        💩+785.1% ±  5.0%
+  branch_misses      5.20K  ± 31.8      5.10K  … 5.26K           2 ( 4%)        💩+  5.3% ±  0.2%
+```

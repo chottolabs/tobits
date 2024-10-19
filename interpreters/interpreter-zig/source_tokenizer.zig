@@ -292,7 +292,10 @@ fn parseSourceFile(allocator: std.mem.Allocator, in: std.fs.File) !void {
     const out = std.io.getStdOut();
     var buf = std.io.bufferedWriter(out.writer());
     var w = buf.writer();
-    const content = try std.zig.readSourceFileToEndAlloc(allocator, in, null);
+
+    const stat = try in.stat();
+    const content = try std.zig.readSourceFileToEndAlloc(allocator, in, stat.size);
+
     var tokenizer = SourceTokenizer.init(content);
     while (tokenizer.next()) |tok| {
         switch (tok.tag) {
