@@ -1,5 +1,7 @@
 some findings:
 - noticed that rust implements it as unchecked, even `.count()` is just counting the non-continuation bytes (didn't realize this initially and the checked init adds 30ms to zig implementation)
+- rust `String` is just a `Vec<u8>` until you actually turn it into u8, however its `char` is utf-8 encoded
+- `.chars().next()` is also unchecked, looks for the next codepoint except it makes a full `char` (4 bytes) whereas zig is returning a slice of the appropriate size for the codepoint based on the first byte.
 
 ```sh
 Benchmark 1 (69 runs): unicode/unicode-zig/build/uni big.txt
