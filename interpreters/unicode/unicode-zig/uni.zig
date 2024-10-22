@@ -1,31 +1,35 @@
 const std = @import("std");
 
-fn parseSourceFile(allocator: std.mem.Allocator, file: std.fs.File) !void {
+fn countUtf8(allocator: std.mem.Allocator, file: std.fs.File) !usize {
     const stat = try file.stat();
     const content = try std.zig.readSourceFileToEndAlloc(allocator, file, stat.size);
 
     var i: usize = 0;
-    // for (content) |c| {
-    //     switch (c) {
-    //         0b1000_0000...0b1011_1111 => {},
-    //         else => {
-    //             i += 1;
-    //         },
-    //     }
-    // }
+    for (content) |c| {
+        switch (c) {
+            0b1000_0000...0b1011_1111 => {},
+            else => {
+                i += 1;
+            },
+        }
+    }
+
+    return i;
+}
+
+fn parseSourceFile(allocator: std.mem.Allocator, file: std.fs.File) !usize {
+    const stat = try file.stat();
+    const content = try std.zig.readSourceFileToEndAlloc(allocator, file, stat.size);
+
+    var i: usize = 0;
 
     const view = std.unicode.Utf8View.initUnchecked(content);
     var it = view.iterator();
 
-    // std.debug.print("{d}", .{content.len});
-    // while (std.unicode.Utf8Iterator.nextCodepoint(&it)) |_| {
-    //     i += 1;
-    // }
-
     while (std.unicode.Utf8Iterator.nextCodepointSlice(&it)) |_| {
         i += 1;
     }
-    std.debug.print("{d}\n", .{i});
+    return i;
 }
 
 pub fn main() !void {
@@ -38,6 +42,8 @@ pub fn main() !void {
 
     if (args.next()) |f| {
         const file = try std.fs.cwd().openFile(f, .{});
-        try parseSourceFile(allocator, file);
+        _ = try parseSourceFile(allocator, file);
+        // _ = try countUtf8(allocator, file);
+        // std.debug.print("{d}\n", .{i});
     }
 }

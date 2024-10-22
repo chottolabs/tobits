@@ -1,8 +1,6 @@
-fn main() {
-    let args: Vec<String> = std::env::args().collect();
+use std::str::Chars;
 
-    let file = std::fs::read_to_string(&args[1]).unwrap();
-    let mut it = file.chars();
+fn iter_code_points(mut it: Chars) -> usize {
     let mut i = 0;
     loop {
         match it.next() {
@@ -10,5 +8,15 @@ fn main() {
             _ => break,
         }
     }
-    println!("{}", i);
+    return i;
+}
+
+fn main() {
+    let args: Vec<String> = std::env::args().collect();
+
+    let file = std::fs::read_to_string(&args[1]).unwrap();
+    let it = file.chars();
+    let i = iter_code_points(it);
+    //let i = it.count();
+    //println!("{}", i);
 }
