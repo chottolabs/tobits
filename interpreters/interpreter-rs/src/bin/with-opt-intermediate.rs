@@ -1,4 +1,4 @@
-use lexer::zig_like::{Tag, Tokenizer};
+use lexer::with_opt_intermediate::{Tag, Tokenizer};
 use std::env;
 use std::io::{self};
 
@@ -19,7 +19,7 @@ fn run_interpreter() -> io::Result<()> {
                     break;
                 }
                 _ => {
-                    // Optionally, extract the actual text
+                    // // Optionally, extract the actual text
                     // let lexeme =
                     //     std::str::from_utf8(&buffer[token.loc.start..token.loc.end]).unwrap_or("");
                     // println!("{:?} '{}'", token.tag, lexeme);

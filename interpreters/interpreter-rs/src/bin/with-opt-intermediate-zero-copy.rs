@@ -1,14 +1,13 @@
-use lexer::normal::{Tag, Tokenizer};
+use lexer::with_opt_intermediate_zero_copy::{Tag, Tokenizer};
 use std::env;
 use std::io::{self};
 
 fn run_interpreter() -> io::Result<()> {
-    println!("(default) zlox interpreter v0.0.1");
+    println!("(zig-like) zlox interpreter v0.0.1");
     println!("Type your code below. Press Ctrl+D (Unix) or Ctrl+Z (Windows) to end input.");
 
     let args: Vec<String> = env::args().collect();
     let buffer = std::fs::read(&args[1])?;
-
     let mut tokenizer = Tokenizer::new(&buffer);
 
     loop {
@@ -20,7 +19,7 @@ fn run_interpreter() -> io::Result<()> {
                     break;
                 }
                 _ => {
-                    // Optionally, extract the actual text
+                    // // Optionally, extract the actual text
                     // let lexeme =
                     //     std::str::from_utf8(&buffer[token.loc.start..token.loc.end]).unwrap_or("");
                     // println!("{:?} '{}'", token.tag, lexeme);

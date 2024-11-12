@@ -19,6 +19,7 @@ pub enum Tag {
 }
 
 impl Tag {
+    #[inline(always)]
     fn from_keyword(keyword: &str) -> Option<Tag> {
         match keyword {
             "and" => Some(Tag::KeywordAnd),
@@ -42,7 +43,7 @@ impl Tag {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Loc {
     pub start: usize,
     pub end: usize,
@@ -69,6 +70,7 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
+    #[inline(always)]
     pub fn next_token(&mut self) -> Option<Token> {
         self.skip_whitespace();
         if self.index >= self.buffer.len() {
@@ -82,7 +84,8 @@ impl<'a> Tokenizer<'a> {
         }
 
         let start = self.index;
-        let c = self.current_char();
+        let c = self.peek()?;
+        // let c = self.current_char();
 
         let tag = match c {
             b'(' => {
@@ -127,7 +130,8 @@ impl<'a> Tokenizer<'a> {
             }
             b'!' => {
                 self.advance();
-                if self.match_char(b'=') {
+                if matches!(self.peek(), Some(b'=')) {
+                    self.advance();
                     Tag::BangEqual
                 } else {
                     Tag::Bang
@@ -135,7 +139,8 @@ impl<'a> Tokenizer<'a> {
             }
             b'=' => {
                 self.advance();
-                if self.match_char(b'=') {
+                if matches!(self.peek(), Some(b'=')) {
+                    self.advance();
                     Tag::EqualEqual
                 } else {
                     Tag::Equal
@@ -143,7 +148,8 @@ impl<'a> Tokenizer<'a> {
             }
             b'<' => {
                 self.advance();
-                if self.match_char(b'=') {
+                if matches!(self.peek(), Some(b'=')) {
+                    self.advance();
                     Tag::LessEqual
                 } else {
                     Tag::Less
@@ -151,7 +157,8 @@ impl<'a> Tokenizer<'a> {
             }
             b'>' => {
                 self.advance();
-                if self.match_char(b'=') {
+                if matches!(self.peek(), Some(b'=')) {
+                    self.advance();
                     Tag::GreaterEqual
                 } else {
                     Tag::Greater
@@ -178,10 +185,12 @@ impl<'a> Tokenizer<'a> {
         })
     }
 
+    #[inline(always)]
     fn current_char(&self) -> u8 {
         self.buffer[self.index]
     }
 
+    #[inline(always)]
     fn advance(&mut self) {
         if self.current_char() == b'\n' {
             self.line += 1;
@@ -189,58 +198,42 @@ impl<'a> Tokenizer<'a> {
         self.index += 1;
     }
 
-    fn match_char(&mut self, expected: u8) -> bool {
-        if self.index < self.buffer.len() && self.buffer[self.index] == expected {
-            self.index += 1;
-            true
-        } else {
-            false
-        }
-    }
-
+    #[inline(always)]
     fn skip_whitespace(&mut self) {
         while self.index < self.buffer.len() {
             match self.buffer[self.index] {
-                b' ' | b'\t' | b'\r' => {
-                    self.index += 1;
-                }
+                b' ' | b'\r' | b'\t' => self.index += 1,
                 b'\n' => {
                     self.line += 1;
                     self.index += 1;
                 }
-                b'/' => {
-                    if self.index + 1 < self.buffer.len() && self.buffer[self.index + 1] == b'/' {
-                        // Comment till end of line
-                        self.index += 2;
-                        while self.index < self.buffer.len() && self.buffer[self.index] != b'\n' {
-                            self.index += 1;
+                b'/' if matches!(self.peek_next(), Some(b'/')) => {
+                    self.index += 2;
+                    while let Some(c) = self.peek() {
+                        if c == b'\n' {
+                            break;
                         }
-                    } else {
-                        break;
+                        self.index += 1;
                     }
                 }
-                _ => break,
+                _ => return,
             }
         }
     }
 
+    #[inline(always)]
     fn number(&mut self, start: usize) -> Option<Token> {
-        while self.index < self.buffer.len() && self.buffer[self.index].is_ascii_digit() {
+        while matches!(self.peek(), Some(b'0'..=b'9')) {
             self.index += 1;
         }
 
-        // Look for a fractional part.
-        if self.index < self.buffer.len() && self.buffer[self.index] == b'.' && {
-            self.index + 1 < self.buffer.len() && self.buffer[self.index + 1].is_ascii_digit()
-        } {
-            // Consume the "."
-            self.index += 1;
+        // Look for fractional part
+        if matches!(self.peek(), Some(b'.')) && matches!(self.peek_next(), Some(b'0'..=b'9')) {
+            self.index += 1; // Skip the dot
 
-            while self.index < self.buffer.len() && self.buffer[self.index].is_ascii_digit() {
+            while matches!(self.peek(), Some(b'0'..=b'9')) {
                 self.index += 1;
             }
-
-            // Here, you might handle exponent parts (e.g., 1e10) if needed.
         }
 
         Some(Token {
@@ -252,14 +245,44 @@ impl<'a> Tokenizer<'a> {
         })
     }
 
+    #[inline(always)]
+    fn peek(&self) -> Option<u8> {
+        if self.index < self.buffer.len() {
+            Some(self.buffer[self.index])
+        } else {
+            None
+        }
+    }
+
+    #[inline(always)]
+    fn peek_next(&self) -> Option<u8> {
+        if self.index + 1 < self.buffer.len() {
+            Some(self.buffer[self.index + 1])
+        } else {
+            None
+        }
+    }
+
+    #[inline(always)]
+    fn peek_offset(&self, offset: usize) -> Option<u8> {
+        if self.index + offset < self.buffer.len() {
+            Some(self.buffer[self.index + offset])
+        } else {
+            None
+        }
+    }
+
+    #[inline(always)]
     fn identifier(&mut self, start: usize) -> Option<Token> {
-        while self.index < self.buffer.len()
-            && (self.buffer[self.index].is_ascii_alphanumeric() || self.buffer[self.index] == b'_')
-        {
-            self.index += 1;
+        while let Some(c) = self.peek() {
+            match c {
+                b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'_' => self.index += 1,
+                _ => break,
+            }
         }
 
-        let text = std::str::from_utf8(&self.buffer[start..self.index]).unwrap_or("");
+        let text = unsafe { std::str::from_utf8_unchecked(&self.buffer[start..self.index]) };
+
         let tag = Tag::from_keyword(text).unwrap_or(Tag::Identifier);
 
         Some(Token {
@@ -269,5 +292,50 @@ impl<'a> Tokenizer<'a> {
                 end: self.index,
             },
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_all_features() {
+        let source = b"class Test { fun main() { var x = 42.5; if (x != 0) { return true; } } }";
+        let mut tokenizer = Tokenizer::new(source);
+        let expected_tags = vec![
+            Tag::KeywordClass,
+            Tag::Identifier,
+            Tag::LeftBrace,
+            Tag::KeywordFun,
+            Tag::Identifier,
+            Tag::LeftParen,
+            Tag::RightParen,
+            Tag::LeftBrace,
+            Tag::KeywordVar,
+            Tag::Identifier,
+            Tag::Equal,
+            Tag::Number,
+            Tag::Semicolon,
+            Tag::KeywordIf,
+            Tag::LeftParen,
+            Tag::Identifier,
+            Tag::BangEqual,
+            Tag::Number,
+            Tag::RightParen,
+            Tag::LeftBrace,
+            Tag::KeywordReturn,
+            Tag::KeywordTrue,
+            Tag::Semicolon,
+            Tag::RightBrace,
+            Tag::RightBrace,
+            Tag::RightBrace,
+        ];
+
+        for expected_tag in expected_tags {
+            if let Some(token) = tokenizer.next_token() {
+                assert_eq!(token.tag, expected_tag);
+            }
+        }
     }
 }

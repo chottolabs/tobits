@@ -1,7 +1,5 @@
-// #[derive(Debug, Clone, PartialEq, Eq)]
 #[rustfmt::skip]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]  // Add Copy
-#[repr(u8)]  // Optimize enum size
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Tag {
     // Single-character tokens
     LeftParen, RightParen, LeftBrace, RightBrace, Comma, Dot, Minus, Plus, Semicolon, Slash, Star,
@@ -21,6 +19,7 @@ pub enum Tag {
 }
 
 impl Tag {
+    #[inline(always)]
     fn from_keyword(keyword: &str) -> Option<Tag> {
         match keyword {
             "and" => Some(Tag::KeywordAnd),
@@ -44,14 +43,9 @@ impl Tag {
     }
 }
 
-// #[derive(Debug, Clone, Copy, PartialEq, Eq)] // Add Copy
-// pub struct Loc {
-//     pub start: u32, // Use u32 instead of usize for smaller size
-//     pub end: u32,
-// }
-#[derive(Debug, Clone, Copy, PartialEq, Eq)] // Add Copy
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Loc {
-    pub start: usize, // Use u32 instead of usize for smaller size
+    pub start: usize,
     pub end: usize,
 }
 
@@ -64,7 +58,6 @@ pub struct Token {
 pub struct Tokenizer<'a> {
     buffer: &'a [u8],
     index: usize,
-    len: usize,  // Cache buffer length
     line: usize, // Optional: For better error reporting
 }
 
@@ -73,7 +66,6 @@ impl<'a> Tokenizer<'a> {
         Tokenizer {
             buffer,
             index: 0,
-            len: buffer.len(),
             line: 1,
         }
     }
@@ -81,7 +73,7 @@ impl<'a> Tokenizer<'a> {
     #[inline(always)]
     pub fn next_token(&mut self) -> Option<Token> {
         self.skip_whitespace();
-        if self.index >= self.len {
+        if self.index >= self.buffer.len() {
             return Some(Token {
                 tag: Tag::Eof,
                 loc: Loc {
@@ -93,6 +85,7 @@ impl<'a> Tokenizer<'a> {
 
         let start = self.index;
         let c = self.peek()?;
+        // let c = self.current_char();
 
         let tag = match c {
             b'(' => {
@@ -186,16 +179,20 @@ impl<'a> Tokenizer<'a> {
         Some(Token {
             tag,
             loc: Loc {
-                start: start,
+                start,
                 end: self.index,
             },
         })
     }
 
     #[inline(always)]
+    fn current_char(&self) -> u8 {
+        self.buffer[self.index]
+    }
+
+    #[inline(always)]
     fn advance(&mut self) {
-        // if unsafe { *self.buffer.get_unchecked(self.index) } == b'\n' {
-        if matches!(self.peek(), Some(b'\n')) {
+        if self.current_char() == b'\n' {
             self.line += 1;
         }
         self.index += 1;
@@ -203,29 +200,24 @@ impl<'a> Tokenizer<'a> {
 
     #[inline(always)]
     fn skip_whitespace(&mut self) {
-        while self.index < self.len {
+        while self.index < self.buffer.len() {
             match self.buffer[self.index] {
                 b' ' | b'\r' | b'\t' => self.index += 1,
                 b'\n' => {
                     self.line += 1;
                     self.index += 1;
                 }
-                b'/' if self.peek_next() == Some(b'/') => {
-                    self.skip_line_comment();
+                b'/' if matches!(self.peek_next(), Some(b'/')) => {
+                    self.index += 2;
+                    while let Some(c) = self.peek() {
+                        if c == b'\n' {
+                            break;
+                        }
+                        self.index += 1;
+                    }
                 }
                 _ => return,
             }
-        }
-    }
-
-    #[inline(always)]
-    fn skip_line_comment(&mut self) {
-        self.index += 2;
-        while let Some(c) = self.peek() {
-            if c == b'\n' {
-                break;
-            }
-            self.index += 1;
         }
     }
 
@@ -247,7 +239,7 @@ impl<'a> Tokenizer<'a> {
         Some(Token {
             tag: Tag::Number,
             loc: Loc {
-                start: start,
+                start,
                 end: self.index,
             },
         })
@@ -255,9 +247,8 @@ impl<'a> Tokenizer<'a> {
 
     #[inline(always)]
     fn peek(&self) -> Option<u8> {
-        if self.index < self.len {
+        if self.index < self.buffer.len() {
             Some(self.buffer[self.index])
-            // Some(unsafe { *self.buffer.get_unchecked(self.index) })
         } else {
             None
         }
@@ -265,9 +256,8 @@ impl<'a> Tokenizer<'a> {
 
     #[inline(always)]
     fn peek_next(&self) -> Option<u8> {
-        if self.index + 1 < self.len {
+        if self.index + 1 < self.buffer.len() {
             Some(self.buffer[self.index + 1])
-            // Some(unsafe { *self.buffer.get_unchecked(self.index) })
         } else {
             None
         }
@@ -275,7 +265,7 @@ impl<'a> Tokenizer<'a> {
 
     #[inline(always)]
     fn peek_offset(&self, offset: usize) -> Option<u8> {
-        if self.index + offset < self.len {
+        if self.index + offset < self.buffer.len() {
             Some(self.buffer[self.index + offset])
         } else {
             None
@@ -291,22 +281,67 @@ impl<'a> Tokenizer<'a> {
             }
         }
 
-        // // Use from_raw_parts for zero-copy string parsing
-        // let text = unsafe {
-        //     std::str::from_utf8_unchecked(std::slice::from_raw_parts(
-        //         self.buffer.as_ptr().add(start),
-        //         self.index - start,
-        //     ))
-        // };
+        // Use from_raw_parts for zero-copy string parsing
+        let text = unsafe {
+            std::str::from_utf8_unchecked(std::slice::from_raw_parts(
+                self.buffer.as_ptr().add(start),
+                self.index - start,
+            ))
+        };
 
-        let text = unsafe { std::str::from_utf8_unchecked(&self.buffer[start..self.index]) };
         let tag = Tag::from_keyword(text).unwrap_or(Tag::Identifier);
+
         Some(Token {
             tag,
             loc: Loc {
-                start: start,
+                start,
                 end: self.index,
             },
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_all_features() {
+        let source = b"class Test { fun main() { var x = 42.5; if (x != 0) { return true; } } }";
+        let mut tokenizer = Tokenizer::new(source);
+        let expected_tags = vec![
+            Tag::KeywordClass,
+            Tag::Identifier,
+            Tag::LeftBrace,
+            Tag::KeywordFun,
+            Tag::Identifier,
+            Tag::LeftParen,
+            Tag::RightParen,
+            Tag::LeftBrace,
+            Tag::KeywordVar,
+            Tag::Identifier,
+            Tag::Equal,
+            Tag::Number,
+            Tag::Semicolon,
+            Tag::KeywordIf,
+            Tag::LeftParen,
+            Tag::Identifier,
+            Tag::BangEqual,
+            Tag::Number,
+            Tag::RightParen,
+            Tag::LeftBrace,
+            Tag::KeywordReturn,
+            Tag::KeywordTrue,
+            Tag::Semicolon,
+            Tag::RightBrace,
+            Tag::RightBrace,
+            Tag::RightBrace,
+        ];
+
+        for expected_tag in expected_tags {
+            if let Some(token) = tokenizer.next_token() {
+                assert_eq!(token.tag, expected_tag);
+            }
+        }
     }
 }

@@ -198,16 +198,6 @@ impl<'a> Tokenizer<'a> {
     }
 
     #[inline(always)]
-    fn match_char(&mut self, expected: u8) -> bool {
-        if self.index < self.buffer.len() && self.buffer[self.index] == expected {
-            self.index += 1;
-            true
-        } else {
-            false
-        }
-    }
-
-    #[inline(always)]
     fn skip_whitespace(&mut self) {
         while self.index < self.buffer.len() {
             match self.buffer[self.index] {
@@ -300,5 +290,50 @@ impl<'a> Tokenizer<'a> {
                 end: self.index,
             },
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_all_features() {
+        let source = b"class Test { fun main() { var x = 42.5; if (x != 0) { return true; } } }";
+        let mut tokenizer = Tokenizer::new(source);
+        let expected_tags = vec![
+            Tag::KeywordClass,
+            Tag::Identifier,
+            Tag::LeftBrace,
+            Tag::KeywordFun,
+            Tag::Identifier,
+            Tag::LeftParen,
+            Tag::RightParen,
+            Tag::LeftBrace,
+            Tag::KeywordVar,
+            Tag::Identifier,
+            Tag::Equal,
+            Tag::Number,
+            Tag::Semicolon,
+            Tag::KeywordIf,
+            Tag::LeftParen,
+            Tag::Identifier,
+            Tag::BangEqual,
+            Tag::Number,
+            Tag::RightParen,
+            Tag::LeftBrace,
+            Tag::KeywordReturn,
+            Tag::KeywordTrue,
+            Tag::Semicolon,
+            Tag::RightBrace,
+            Tag::RightBrace,
+            Tag::RightBrace,
+        ];
+
+        for expected_tag in expected_tags {
+            if let Some(token) = tokenizer.next_token() {
+                assert_eq!(token.tag, expected_tag);
+            }
+        }
     }
 }
