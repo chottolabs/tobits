@@ -204,6 +204,7 @@ impl<'a> Tokenizer<'a> {
                     self.line += 1;
                     self.index += 1;
                 }
+                // comment skipping
                 b'/' if matches!(self.peek_next(), Some(b'/')) => {
                     self.index += 2;
                     while let Some(c) = self.peek() {
