@@ -186,13 +186,8 @@ impl<'a> Tokenizer<'a> {
     }
 
     #[inline(always)]
-    fn current_char(&self) -> u8 {
-        self.buffer[self.index]
-    }
-
-    #[inline(always)]
     fn advance(&mut self) {
-        if self.current_char() == b'\n' {
+        if self.buffer[self.index] == b'\n' {
             self.line += 1;
         }
         self.index += 1;
@@ -258,15 +253,6 @@ impl<'a> Tokenizer<'a> {
     fn peek_next(&self) -> Option<u8> {
         if self.index + 1 < self.buffer.len() {
             Some(self.buffer[self.index + 1])
-        } else {
-            None
-        }
-    }
-
-    #[inline(always)]
-    fn peek_offset(&self, offset: usize) -> Option<u8> {
-        if self.index + offset < self.buffer.len() {
-            Some(self.buffer[self.index + offset])
         } else {
             None
         }

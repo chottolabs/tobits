@@ -1,5 +1,6 @@
 #[rustfmt::skip]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tag {
     // Single-character tokens
     LeftParen, RightParen, LeftBrace, RightBrace, Comma, Dot, Minus, Plus, Semicolon, Slash, Star,
@@ -57,6 +58,7 @@ pub struct Token {
 
 pub struct Tokenizer<'a> {
     buffer: &'a [u8],
+    len: usize,
     index: usize,
     line: usize, // Optional: For better error reporting
 }
@@ -66,6 +68,7 @@ impl<'a> Tokenizer<'a> {
         Tokenizer {
             buffer,
             index: 0,
+            len: buffer.len(),
             line: 1,
         }
     }
@@ -73,7 +76,7 @@ impl<'a> Tokenizer<'a> {
     #[inline(always)]
     pub fn next_token(&mut self) -> Option<Token> {
         self.skip_whitespace();
-        if self.index >= self.buffer.len() {
+        if self.index >= self.len {
             return Some(Token {
                 tag: Tag::Eof,
                 loc: Loc {
@@ -85,7 +88,6 @@ impl<'a> Tokenizer<'a> {
 
         let start = self.index;
         let c = self.peek()?;
-        // let c = self.current_char();
 
         let tag = match c {
             b'(' => {
@@ -186,13 +188,8 @@ impl<'a> Tokenizer<'a> {
     }
 
     #[inline(always)]
-    fn current_char(&self) -> u8 {
-        self.buffer[self.index]
-    }
-
-    #[inline(always)]
     fn advance(&mut self) {
-        if self.current_char() == b'\n' {
+        if self.buffer[self.index] == b'\n' {
             self.line += 1;
         }
         self.index += 1;
@@ -258,15 +255,6 @@ impl<'a> Tokenizer<'a> {
     fn peek_next(&self) -> Option<u8> {
         if self.index + 1 < self.buffer.len() {
             Some(self.buffer[self.index + 1])
-        } else {
-            None
-        }
-    }
-
-    #[inline(always)]
-    fn peek_offset(&self, offset: usize) -> Option<u8> {
-        if self.index + offset < self.buffer.len() {
-            Some(self.buffer[self.index + offset])
         } else {
             None
         }
