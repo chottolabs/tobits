@@ -19,7 +19,7 @@ fn run_interpreter() -> io::Result<()> {
                     break;
                 }
                 _ => {
-                    // Optionally, extract the actual text
+                    // // Optionally, extract the actual text
                     // let lexeme =
                     //     std::str::from_utf8(&buffer[token.loc.start..token.loc.end]).unwrap_or("");
                     // println!("{:?} '{}'", token.tag, lexeme);

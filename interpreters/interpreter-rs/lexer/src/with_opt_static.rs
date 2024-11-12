@@ -1,3 +1,6 @@
+use phf;
+use phf::phf_map;
+
 // #[derive(Debug, Clone, PartialEq, Eq)]
 #[rustfmt::skip]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]  // Add Copy
@@ -19,28 +22,29 @@ pub enum Tag {
     Eof,
     Invalid,
 }
+static KEYWORDS: phf::Map<&'static str, Tag> = phf_map! {
+    "and" => Tag::KeywordAnd,
+    "class" => Tag::KeywordClass,
+    "else" => Tag::KeywordElse,
+    "false" => Tag::KeywordFalse,
+    "fun" => Tag::KeywordFun,
+    "for" => Tag::KeywordFor,
+    "if" => Tag::KeywordIf,
+    "nil" => Tag::KeywordNil,
+    "or" => Tag::KeywordOr,
+    "print" => Tag::KeywordPrint,
+    "return" => Tag::KeywordReturn,
+    "super" => Tag::KeywordSuper,
+    "this" => Tag::KeywordThis,
+    "true" => Tag::KeywordTrue,
+    "var" => Tag::KeywordVar,
+    "while" => Tag::KeywordWhile,
+};
 
 impl Tag {
+    #[inline(always)]
     fn from_keyword(keyword: &str) -> Option<Tag> {
-        match keyword {
-            "and" => Some(Tag::KeywordAnd),
-            "class" => Some(Tag::KeywordClass),
-            "else" => Some(Tag::KeywordElse),
-            "false" => Some(Tag::KeywordFalse),
-            "fun" => Some(Tag::KeywordFun),
-            "for" => Some(Tag::KeywordFor),
-            "if" => Some(Tag::KeywordIf),
-            "nil" => Some(Tag::KeywordNil),
-            "or" => Some(Tag::KeywordOr),
-            "print" => Some(Tag::KeywordPrint),
-            "return" => Some(Tag::KeywordReturn),
-            "super" => Some(Tag::KeywordSuper),
-            "this" => Some(Tag::KeywordThis),
-            "true" => Some(Tag::KeywordTrue),
-            "var" => Some(Tag::KeywordVar),
-            "while" => Some(Tag::KeywordWhile),
-            _ => None,
-        }
+        KEYWORDS.get(keyword).cloned()
     }
 }
 
@@ -290,14 +294,6 @@ impl<'a> Tokenizer<'a> {
                 _ => break,
             }
         }
-
-        // // Use from_raw_parts for zero-copy string parsing
-        // let text = unsafe {
-        //     std::str::from_utf8_unchecked(std::slice::from_raw_parts(
-        //         self.buffer.as_ptr().add(start),
-        //         self.index - start,
-        //     ))
-        // };
 
         let text = unsafe { std::str::from_utf8_unchecked(&self.buffer[start..self.index]) };
         let tag = Tag::from_keyword(text).unwrap_or(Tag::Identifier);
