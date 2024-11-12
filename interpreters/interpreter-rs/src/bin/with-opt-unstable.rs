@@ -1,4 +1,4 @@
-use lexer::with_opt_static::{Tag, Tokenizer};
+use lexer::with_opt_unstable::{Tag, Tokenizer};
 use std::env;
 use std::io::{self};
 
